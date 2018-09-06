@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
