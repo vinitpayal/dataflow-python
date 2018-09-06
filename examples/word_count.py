@@ -4,8 +4,6 @@ import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.metrics import Metrics
-from apache_beam.pipeline import PCollection
 from apache_beam.pipeline import SetupOptions
 import argparse
 import re
