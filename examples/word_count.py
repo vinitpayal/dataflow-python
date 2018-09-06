@@ -42,6 +42,11 @@ def run(argv=None):
         test_inmemory_word_count()
         return
 
+    if known_args.execution_type == 'in-memory-obj-list':
+        test_inmemory_with_obj_list()
+        return "success"
+
+
     pipeline_options = PipelineOptions(pipeline_args)
 
     pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -101,6 +106,23 @@ def test_inmemory_word_count(argv=None):
 
     result = p.run()
     result.wait_until_finish()
+
+
+def test_inmemory_with_obj_list():
+    words_list = [{"first_name": "vinit", "last_name": "payal"}]
+    p = beam.Pipeline()
+
+    def print_pcollection(element):
+        print(element["first_name"], element['last_name'])
+        return element
+
+    words = (p
+             | 'create pcollection from inmemory' >> beam.Create(words_list)
+             | 'print pcollection element' >> beam.Map(print_pcollection)
+             )
+
+    res = p.run()
+    res.wait_until_finish()
 
 
 run()
