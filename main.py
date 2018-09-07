@@ -1,6 +1,6 @@
-from examples import  datastore_input
+from examples import  datastore_input, flatten
 
 def run():
-    datastore_input.run()
+    flatten.run()
 
 run()
