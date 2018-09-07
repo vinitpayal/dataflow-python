@@ -1,6 +1,6 @@
-from examples import  datastore_input, flatten
+from examples import  datastore_input, flatten, google_pubsub_input
 
 def run():
-    flatten.run()
+    google_pubsub_input.run()
 
 run()
