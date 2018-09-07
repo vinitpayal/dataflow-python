@@ -83,12 +83,14 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from common import utils
 
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def __init__(self):
+    print("==== init callled ====")
     self.empty_line_counter = Metrics.counter('main', 'empty_lines')
     self.word_length_counter = Metrics.counter('main', 'word_lengths')
     self.word_counter = Metrics.counter('main', 'total_words')
@@ -102,9 +104,8 @@ class WordExtractingDoFn(beam.DoFn):
     Returns:
       The processed element.
     """
+    print("=== in processing function =========")
     content_value = element.properties.get('content', None)
-    print('---------------------------------')
-    print(content_value)
     text_line = ''
     if content_value:
       text_line = content_value.string_value
@@ -119,37 +120,37 @@ class WordExtractingDoFn(beam.DoFn):
     return words
 
 
-class EntityWrapper(object):
-  """Create a Cloud Datastore entity from the given string."""
-  def __init__(self, namespace, kind, ancestor):
-    self._namespace = namespace
-    self._kind = kind
-    self._ancestor = ancestor
+# class EntityWrapper(object):
+#   """Create a Cloud Datastore entity from the given string."""
+#   def __init__(self, namespace, kind, ancestor):
+#     self._namespace = namespace
+#     self._kind = kind
+#     self._ancestor = ancestor
+#
+#   def make_entity(self, content):
+#     entity = entity_pb2.Entity()
+#     if self._namespace is not None:
+#       entity.key.partition_id.namespace_id = self._namespace
+#
+#     # All entities created will have the same ancestor
+#     datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
+#                                   self._kind, str(uuid.uuid4()))
+#
+#     datastore_helper.add_properties(entity, {"content": unicode(content)})
+#     return entity
 
-  def make_entity(self, content):
-    entity = entity_pb2.Entity()
-    if self._namespace is not None:
-      entity.key.partition_id.namespace_id = self._namespace
 
-    # All entities created will have the same ancestor
-    datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
-                                  self._kind, str(uuid.uuid4()))
-
-    datastore_helper.add_properties(entity, {"content": unicode(content)})
-    return entity
-
-
-def write_to_datastore(user_options, pipeline_options):
-  """Creates a pipeline that writes entities to Cloud Datastore."""
-  with beam.Pipeline(options=pipeline_options) as p:
-
-    # pylint: disable=expression-not-assigned
-    (p
-     | 'read' >> ReadFromText(user_options.input)
-     | 'create entity' >> beam.Map(
-         EntityWrapper(user_options.namespace, user_options.kind,
-                       user_options.ancestor).make_entity)
-     | 'write to datastore' >> WriteToDatastore(user_options.dataset))
+# def write_to_datastore(user_options, pipeline_options):
+#   """Creates a pipeline that writes entities to Cloud Datastore."""
+#   with beam.Pipeline(options=pipeline_options) as p:
+#
+#     # pylint: disable=expression-not-assigned
+#     (p
+#      | 'read' >> ReadFromText(user_options.input)
+#      | 'create entity' >> beam.Map(
+#          EntityWrapper(user_options.namespace, user_options.kind,
+#                        user_options.ancestor).make_entity)
+#      | 'write to datastore' >> WriteToDatastore(user_options.dataset))
 
 
 def make_ancestor_query(kind, namespace, ancestor):
@@ -173,21 +174,25 @@ def make_ancestor_query(kind, namespace, ancestor):
 
 
 def read_from_datastore(user_options, pipeline_options):
+
   """Creates a pipeline that reads entities from Cloud Datastore."""
-  p = beam.Pipeline(options=pipeline_options)
+  p = beam.Pipeline()
   # Create a query to read entities from datastore.
   query = make_ancestor_query(user_options.kind, user_options.namespace,
                               user_options.ancestor)
 
   # Read entities from Cloud Datastore into a PCollection.
-  lines = p | 'read from datastore' >> ReadFromDatastore(
-      user_options.dataset, query, user_options.namespace)
-
+  lines = (p | 'read from datastore' >> ReadFromDatastore(user_options.dataset, query, user_options.namespace))
+          # |'print pcollection' >> beam.Map(utils.print_pcollection))
+  result= p.run()
+  result.wait_until_finish()
+  return
   # Count the occurrences of each word.
   def count_ones(word_ones):
     (word, ones) = word_ones
     return (word, sum(ones))
 
+  print('---- I am strange and roaming around here ------')
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
                           .with_output_types(unicode))
@@ -217,10 +222,10 @@ def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
+  # parser.add_argument('--input',
+  #                     dest='input',
+  #                     default='gs://dataflow-samples/shakespeare/kinglear.txt',
+  #                     help='Input file to process.')
   parser.add_argument('--dataset',
                       dest='dataset',
                       help='Dataset ID to read from Cloud Datastore.')
@@ -235,10 +240,10 @@ def run(argv=None):
                       dest='ancestor',
                       default='root',
                       help='The ancestor key name for all entities.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
+  # parser.add_argument('--output',
+  #                     dest='output',
+  #                     required=True,
+  #                     help='Output file to write results to.')
   parser.add_argument('--read_only',
                       action='store_true',
                       help='Read an existing dataset, do not write first')
@@ -253,15 +258,15 @@ def run(argv=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  # pipeline_options.view_as(SetupOptions).save_main_session = True
 
   # Write to Datastore if `read_only` options is not specified.
-  if not known_args.read_only:
-    write_to_datastore(known_args, pipeline_options)
+  # if not known_args.read_only:
+  #   write_to_datastore(known_args, pipeline_options)
 
   # Read entities from Datastore.
   result = read_from_datastore(known_args, pipeline_options)
-
+  return
   empty_lines_filter = MetricsFilter().with_name('empty_lines')
   query_result = result.metrics().query(empty_lines_filter)
   if query_result['counters']:
