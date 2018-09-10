@@ -1,6 +1,6 @@
-from examples import  datastore_input, flatten, google_pubsub_input
+from examples import  datastore_input, flatten, google_pubsub_input, google_bigquery_output, bigquery_write_github_example
 
 def run():
-    google_pubsub_input.run()
+    bigquery_write_github_example.run()
 
 run()

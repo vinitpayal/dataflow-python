@@ -12,7 +12,6 @@ def run(argv=None):
         '--input_topic', required=True,
         help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
 
-
     known_args, pipeline_args = parser.parse_known_args(argv)
 
     p = beam.Pipeline(argv=pipeline_args)
